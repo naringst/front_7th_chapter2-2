@@ -10,7 +10,7 @@ export interface FunctionComponent<P extends Props> {
 
 export interface VNode {
   type: string | symbol | React.ComponentType;
-  key: string | null;
+  key: string | number | null;
   props: Props;
 }
 
@@ -19,7 +19,7 @@ export interface Instance {
   dom: HTMLElement | Text | null;
   node: VNode;
   children: (Instance | null)[];
-  key: string | null;
+  key: string | number | null;
   path: string;
 }
 
