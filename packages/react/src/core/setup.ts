@@ -5,15 +5,36 @@ import { cleanupUnusedHooks } from "./hooks";
 import { render } from "./render";
 
 /**
- * Mini-React 애플리케이션의 루트를 설정하고 첫 렌더링을 시작합니다.
- *
- * @param rootNode - 렌더링할 최상위 VNode
- * @param container - VNode가 렌더링될 DOM 컨테이너
+ * Mini-React의 루트 렌더링을 초기화하고 실행합니다.
  */
 export const setup = (rootNode: VNode | null, container: HTMLElement): void => {
-  // 여기를 구현하세요.
-  // 1. 컨테이너 유효성을 검사합니다.
-  // 2. 이전 렌더링 내용을 정리하고 컨테이너를 비웁니다.
-  // 3. 루트 컨텍스트와 훅 컨텍스트를 리셋합니다.
-  // 4. 첫 렌더링을 실행합니다.
+  // 1. 컨테이너 유효성 검사
+  if (!container) {
+    throw new Error("Container is required for rendering.");
+  }
+  if (rootNode === null) {
+    throw new Error("Cannot render null as a root element.");
+  }
+
+  // 2. 이전 렌더링 정리
+  if (context.root.instance && context.root.container) {
+    removeInstance(context.root.container, context.root.instance);
+  }
+
+  // 컨테이너 비우기
+  container.innerHTML = "";
+
+  // 3. 루트 컨텍스트 / 훅 컨텍스트 초기화
+  context.root.reset({ container, node: rootNode });
+  context.hooks.clear();
+  context.effects.queue.length = 0;
+
+  // 4. 첫 렌더 실행
+  const newInstance = render();
+
+  // 저장
+  context.root.instance = newInstance;
+
+  // 5. unvisited hook cleanup (initial mount에서도 필요)
+  cleanupUnusedHooks();
 };

@@ -1,18 +1,29 @@
 import { context } from "./context";
-import { getDomNodes, insertInstance } from "./dom";
 import { reconcile } from "./reconciler";
 import { cleanupUnusedHooks } from "./hooks";
 import { withEnqueue } from "../utils";
+import type { Instance } from "./types";
 
 /**
  * 루트 컴포넌트의 렌더링을 수행하는 함수입니다.
  * `enqueueRender`에 의해 스케줄링되어 호출됩니다.
  */
-export const render = (): void => {
-  // 여기를 구현하세요.
-  // 1. 훅 컨텍스트를 초기화합니다.
-  // 2. reconcile 함수를 호출하여 루트 노드를 재조정합니다.
-  // 3. 사용되지 않은 훅들을 정리(cleanupUnusedHooks)합니다.
+export const render = (): Instance | null => {
+  const { container, node, instance } = context.root;
+  if (!container) {
+    throw new Error("Root container is not set.");
+  }
+
+  // 렌더링 전 훅 방문 정보를 초기화합니다.
+  context.hooks.visited.clear();
+  context.hooks.cursor.clear();
+
+  const nextInstance = node ? reconcile(container, instance, node, "/root") : null;
+  context.root.instance = nextInstance;
+
+  cleanupUnusedHooks();
+
+  return nextInstance;
 };
 
 /**
