@@ -78,14 +78,25 @@ export const createElement = (
  */
 export const createChildPath = (
   parentPath: string,
-  key: string | null,
+  key: string | number | null,
   index: number,
   nodeType?: string | symbol | React.ComponentType,
 ): string => {
-  const base = key ?? index.toString();
+  const base = key !== null ? String(key) : index.toString();
 
-  // type이 문자열이면 태그명, 아니면 함수형 컴포넌트로 단순화
-  const typeLabel = typeof nodeType === "string" ? nodeType : nodeType === Fragment ? "fragment" : "cmp";
+  const getTypeToken = () => {
+    if (nodeType === Fragment) return "fragment";
+    if (typeof nodeType === "string") return nodeType;
+    if (typeof nodeType === "symbol") return nodeType.description ?? nodeType.toString();
+    if (typeof nodeType === "function") {
+      const component = nodeType as React.ComponentType & { displayName?: string; name?: string };
+      const label = component.displayName ?? component.name ?? "anonymous";
+      return `cmp-${label.toLowerCase()}`;
+    }
+    return "node";
+  };
+
+  const typeLabel = getTypeToken();
 
   return `${parentPath}/${typeLabel}:${base}`;
 };
