@@ -1,7 +1,7 @@
 import { context } from "./context";
 import { VNode } from "./types";
 import { removeInstance } from "./dom";
-import { cleanupUnusedHooks } from "./hooks";
+// import { cleanupUnusedHooks } from "./hooks";
 import { render } from "./render";
 
 /**
@@ -34,7 +34,4 @@ export const setup = (rootNode: VNode | null, container: HTMLElement): void => {
 
   // 저장
   context.root.instance = newInstance;
-
-  // 5. unvisited hook cleanup (initial mount에서도 필요)
-  cleanupUnusedHooks();
 };
