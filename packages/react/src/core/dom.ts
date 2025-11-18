@@ -2,42 +2,124 @@
 import { NodeTypes } from "./constants";
 import { Instance } from "./types";
 
+const BOOLEAN_ATTRIBUTES = new Set(["disabled", "checked", "multiple", "required"]);
+
+const isEventProp = (key: string): boolean => key.startsWith("on") && key.length > 2;
+const extractEventName = (key: string): string => key.slice(2).toLowerCase();
+
+const applyStyle = (
+  dom: HTMLElement,
+  prevStyle: Record<string, any> = {},
+  nextStyle: Record<string, any> = {},
+): void => {
+  for (const styleName in prevStyle) {
+    if (!(styleName in nextStyle)) {
+      dom.style[styleName as any] = "";
+    }
+  }
+
+  for (const styleName in nextStyle) {
+    const value = nextStyle[styleName];
+    dom.style[styleName as any] = value ?? "";
+  }
+};
+
+const applyAttribute = (dom: HTMLElement, key: string, value: any): void => {
+  if (key === "children") return;
+
+  if (key === "className") {
+    if (value == null || value === "") {
+      dom.removeAttribute("class");
+    } else {
+      dom.setAttribute("class", value);
+    }
+    return;
+  }
+
+  if (key === "readOnly") {
+    const boolValue = Boolean(value);
+    (dom as any).readOnly = boolValue;
+    if (boolValue) {
+      dom.setAttribute("readonly", "");
+    } else {
+      dom.removeAttribute("readonly");
+    }
+    return;
+  }
+
+  if (key === "value") {
+    const resolved = value ?? "";
+    (dom as any).value = resolved;
+    if (resolved === "") {
+      dom.removeAttribute("value");
+    } else {
+      dom.setAttribute("value", resolved);
+    }
+    return;
+  }
+
+  if (BOOLEAN_ATTRIBUTES.has(key)) {
+    const boolValue = Boolean(value);
+    (dom as any)[key] = boolValue;
+    if (boolValue) {
+      dom.setAttribute(key, "");
+    } else {
+      dom.removeAttribute(key);
+    }
+    return;
+  }
+
+  if (value === true) {
+    dom.setAttribute(key, "");
+    return;
+  }
+
+  if (value === false || value == null) {
+    dom.removeAttribute(key);
+    return;
+  }
+
+  if (key in dom) {
+    try {
+      (dom as any)[key] = value;
+    } catch {
+      // ignore assignment failure
+    }
+  }
+
+  dom.setAttribute(key, String(value));
+};
+
 /**
  * DOM 요소에 속성(props)을 설정합니다.
  */
-export const setDomProps = (dom: HTMLElement, props: Record<string, any>): void => {
+export const setDomProps = (
+  dom: HTMLElement,
+  props: Record<string, any>,
+  prevProps: Record<string, any> = {},
+): void => {
   for (const key in props) {
+    if (key === "children") continue;
     const value = props[key];
 
-    if (key === "children") continue; // children 제외
-
-    // 이벤트 핸들러
-    if (key.startsWith("on") && typeof value === "function") {
-      const event = key.slice(2).toLowerCase();
-      dom.addEventListener(event, value);
+    if (isEventProp(key) && typeof value === "function") {
+      const event = extractEventName(key);
+      const prevHandler = prevProps[key];
+      if (prevHandler !== value) {
+        if (prevHandler) {
+          dom.removeEventListener(event, prevHandler);
+        }
+        dom.addEventListener(event, value);
+      }
       continue;
     }
 
-    // 스타일
     if (key === "style" && typeof value === "object") {
-      Object.assign(dom.style, value);
+      applyStyle(dom, (prevProps.style as Record<string, any>) ?? {}, value);
       continue;
     }
 
-    // className
-    if (key === "className") {
-      dom.setAttribute("class", value);
-      continue;
-    }
-
-    // 일반 속성
-    if (value === true) {
-      dom.setAttribute(key, "");
-    } else if (value === false || value == null) {
-      dom.removeAttribute(key);
-    } else {
-      dom.setAttribute(key, value);
-    }
+    applyAttribute(dom, key, value);
   }
 };
 
@@ -49,25 +131,24 @@ export const updateDomProps = (
   prevProps: Record<string, any> = {},
   nextProps: Record<string, any> = {},
 ): void => {
-  // 1. 제거할 props 처리
   for (const key in prevProps) {
     if (key === "children") continue;
 
-    // 삭제된 event handler
-    if (key.startsWith("on") && !(key in nextProps)) {
-      const event = key.slice(2).toLowerCase();
-      dom.removeEventListener(event, prevProps[key]);
+    if (isEventProp(key)) {
+      const prevHandler = prevProps[key];
+      const nextHandler = nextProps[key];
+      if (typeof prevHandler === "function" && prevHandler !== nextHandler) {
+        dom.removeEventListener(extractEventName(key), prevHandler);
+      }
       continue;
     }
 
-    // 삭제된 일반 속성
     if (!(key in nextProps)) {
-      dom.removeAttribute(key);
+      applyAttribute(dom, key, undefined);
     }
   }
 
-  // 2. 새 props 적용
-  setDomProps(dom, nextProps);
+  setDomProps(dom, nextProps, prevProps);
 };
 
 /**
